@@ -1,5 +1,4 @@
-   
-           <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -119,7 +118,7 @@ function update() {
     ball.velocityX = direction * ball.speed * Math.cos(angle);
     ball.velocityY = ball.speed * Math.sin(angle);
 
-    ball.speed += 0.5;
+    ball.speed += 0.9;
   }
 
   // Score
@@ -158,16 +157,16 @@ setInterval(game, 1000/60);
 document.addEventListener("keydown", function(e) {
   switch(e.key) {
     case "w":
-      left.y -= 20;
+      left.y -= 30;
       break;
     case "s":
-      left.y += 20;
+      left.y += 30;
       break;
     case "ArrowUp":
-      right.y -= 20;
+      right.y -= 30;
       break;
     case "ArrowDown":
-      right.y += 20;
+      right.y += 30;
       break;
   }
 });
@@ -177,4 +176,8 @@ document.addEventListener("keydown", function(e) {
 </html>
 
 
+   
+           
+  
 
+ 
