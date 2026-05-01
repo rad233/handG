@@ -2,72 +2,114 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Pong Pro</title>
+<title>Pong Pro Clean</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-body{margin:0;background:#000;color:#fff;font-family:Arial;display:flex;justify-content:center;align-items:center;height:100vh}
-#menu{text-align:center}
-button{padding:10px 20px;margin:5px;cursor:pointer}
-canvas{background:#000;border:2px solid #333;display:none}
+body{background:#000;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;font-family:Arial}
+#wrap{text-align:center;color:#fff}
+canvas{border:1px solid #222}
 </style>
 </head>
 <body>
 
-<div id="menu">
-  <h1>PONG PRO</h1>
-  <p>Mode:</p>
-  <button onclick="mode='ai'">VS AI</button>
-  <button onclick="mode='2p'">2 Player</button>
-
-  <p>Difficulty:</p>
-  <button onclick="difficulty=2">Easy</button>
-  <button onclick="difficulty=4">Medium</button>
-  <button onclick="difficulty=6">Hard</button>
-
-  <p>Theme:</p>
-  <button onclick="theme='neon'">Neon</button>
-  <button onclick="theme='retro'">Retro</button>
-
-  <br><br>
-  <button onclick="start()">Start Game</button>
+<div id="wrap">
+  <h2>PONG PRO</h2>
+  <p>W/S = Move | ↑ ↓ = 2P | T = Theme | M = Toggle Mode</p>
+  <canvas id="cv" width="600" height="360"></canvas>
+  <h3 id="score">0 : 0</h3>
 </div>
 
-<canvas id="game" width="600" height="360"></canvas>
-
 <script>
-const c=document.getElementById("game");
-const ctx=c.getContext("2d");
+const cv=document.getElementById('cv');
+const ctx=cv.getContext('2d');
 
 let mode="ai";
-let difficulty=4;
 let theme="neon";
 
 let ball={x:300,y:180,vx:4,vy:3};
 let p1={y:150}, p2={y:150};
 let score1=0, score2=0;
-
 let keys={};
 
-const hitSound=new Audio("https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg");
-const scoreSound=new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg");
-const winSound=new Audio("https://actions.google.com/sounds/v1/cartoon/concussive_drum_hit.ogg");
+let particles=[];
 
-function start(){
-  document.getElementById("menu").style.display="none";
-  c.style.display="block";
-  loop();
+// lightweight sound
+const hitSound=new Audio("https://actions.google.com/sounds/v1/cartoon/pop.ogg");
+
+function playHit(){
+  hitSound.currentTime=0;
+  hitSound.play();
+}
+
+function spawnParticles(x,y,color){
+  if(particles.length>80) return;
+  for(let i=0;i<6;i++){
+    const a=Math.random()*Math.PI*2;
+    particles.push({
+      x,y,
+      vx:Math.cos(a)*2,
+      vy:Math.sin(a)*2,
+      life:1,
+      color
+    });
+  }
 }
 
 function reset(dir){
   ball.x=300; ball.y=180;
-  ball.vx=dir*4; ball.vy=(Math.random()*4-2);
+  ball.vx=dir*4;
+  ball.vy=(Math.random()*4-2);
+}
+
+function aiMove(){
+  let target=ball.y-30;
+  p2.y += (target-p2.y)*0.08;
+}
+
+function update(){
+  ball.x+=ball.vx;
+  ball.y+=ball.vy;
+
+  if(ball.y<0||ball.y>360) ball.vy*=-1;
+
+  if(keys["w"]) p1.y-=6;
+  if(keys["s"]) p1.y+=6;
+
+  if(mode==="2p"){
+    if(keys["ArrowUp"]) p2.y-=6;
+    if(keys["ArrowDown"]) p2.y+=6;
+  } else {
+    aiMove();
+  }
+
+  // collision
+  if(ball.x<20 && ball.y>p1.y && ball.y<p1.y+60){
+    ball.vx*=-1; playHit(); spawnParticles(ball.x,ball.y,"#0ff");
+  }
+
+  if(ball.x>580 && ball.y>p2.y && ball.y<p2.y+60){
+    ball.vx*=-1; playHit(); spawnParticles(ball.x,ball.y,"#f0f");
+  }
+
+  // scoring
+  if(ball.x<0){score2++; reset(1);}
+  if(ball.x>600){score1++; reset(-1);}
+
+  document.getElementById("score").textContent=score1+" : "+score2;
+
+  // particles
+  particles.forEach(p=>{
+    p.x+=p.vx;
+    p.y+=p.vy;
+    p.life-=0.05;
+  });
+  particles=particles.filter(p=>p.life>0);
 }
 
 function draw(){
   ctx.fillStyle="#000";
   ctx.fillRect(0,0,600,360);
 
-  // theme colors
   let c1=theme==="neon"?"#0ff":"#0f0";
   let c2=theme==="neon"?"#f0f":"#f00";
 
@@ -82,53 +124,12 @@ function draw(){
   ctx.arc(ball.x,ball.y,7,0,Math.PI*2);
   ctx.fill();
 
-  ctx.fillText(score1,250,30);
-  ctx.fillText(score2,330,30);
-}
-
-function update(){
-  ball.x+=ball.vx;
-  ball.y+=ball.vy;
-
-  if(ball.y<0||ball.y>360) ball.vy*=-1;
-
-  // player 1
-  if(keys["w"]) p1.y-=6;
-  if(keys["s"]) p1.y+=6;
-
-  // player 2 or AI
-  if(mode==="2p"){
-    if(keys["ArrowUp"]) p2.y-=6;
-    if(keys["ArrowDown"]) p2.y+=6;
-  } else {
-    // smarter AI (predict)
-    let target=ball.y - 30;
-    if(p2.y<target) p2.y+=difficulty;
-    else p2.y-=difficulty;
-  }
-
-  // collisions
-  if(ball.x<20 && ball.y>p1.y && ball.y<p1.y+60){
-    ball.vx*=-1; hitSound.play();
-  }
-  if(ball.x>580 && ball.y>p2.y && ball.y<p2.y+60){
-    ball.vx*=-1; hitSound.play();
-  }
-
-  // scoring
-  if(ball.x<0){
-    score2++; scoreSound.play(); reset(1);
-  }
-  if(ball.x>600){
-    score1++; scoreSound.play(); reset(-1);
-  }
-
-  // win
-  if(score1===7||score2===7){
-    winSound.play();
-    alert(score1===7?"Player 1 Wins!":"Player 2 Wins!");
-    location.reload();
-  }
+  particles.forEach(p=>{
+    ctx.fillStyle=p.color;
+    ctx.globalAlpha=p.life;
+    ctx.fillRect(p.x,p.y,3,3);
+    ctx.globalAlpha=1;
+  });
 }
 
 function loop(){
@@ -138,20 +139,23 @@ function loop(){
 }
 
 // controls
-document.addEventListener("keydown",e=>keys[e.key]=true);
+document.addEventListener("keydown",e=>{
+  keys[e.key]=true;
+
+  if(e.key==="m") mode = mode==="ai" ? "2p" : "ai";
+  if(e.key==="t") theme = theme==="neon" ? "retro" : "neon";
+});
+
 document.addEventListener("keyup",e=>keys[e.key]=false);
 
-// touch / mouse
-c.addEventListener("mousemove",e=>{
-  let rect=c.getBoundingClientRect();
+// mouse control
+cv.addEventListener("mousemove",e=>{
+  let rect=cv.getBoundingClientRect();
   p1.y=e.clientY-rect.top-30;
 });
 
-c.addEventListener("touchmove",e=>{
-  let rect=c.getBoundingClientRect();
-  p1.y=e.touches[0].clientY-rect.top-30;
-});
-
+loop();
 </script>
+
 </body>
 </html>
